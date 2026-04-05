@@ -438,19 +438,18 @@
 
         const target = workingBoard[r][c];
 
-        // Hit a mine
+        // Hit a mine - reveal board and mark the triggering cell
         if (target.mine) {
           stopTimer();
-          // Reveal all mines
           const lostBoard = workingBoard.map(row =>
             row.map(cell => ({
               ...cell,
+              // Reveal all mines (flagged ones stay covered visually via cellContent)
               revealed: cell.mine ? true : cell.revealed,
-              hitMine: cell.row === r && cell.col === c,
+              // Mark the specific mine that was clicked (red background)
+              hitMine: (cell.row === r && cell.col === c),
             }))
           );
-          // Mark the clicked mine specially
-          lostBoard[r][c].hitMine = true;
           setBoard(lostBoard);
           setGameState('lost');
           return;
