@@ -370,8 +370,8 @@
         if (cell.adjacent > 0) return cell.adjacent;
         return '';
       }
-      // Unrevealed non-flagged: on loss, show all mines
-      if (gameState === 'lost' && cell.mine) return '💣';
+      // Unrevealed non-flagged: on loss, reveal all mines
+      if (gameState === 'lost' && cell.mine && !cell.flagged) return '💣';
       return '';
     }
 
@@ -499,11 +499,14 @@
         return '🙂';
       }
 
-      /* ---- Pad display numbers ---- */
-      function pad(n, len = 3) {
-        const s = Math.abs(Math.min(n, 999)).toString();
-        const padded = s.padStart(len, '0');
-        return n < 0 ? '-' + padded.slice(1) : padded;
+      /* ---- Pad display numbers (supports negative, max 3 chars wide) ---- */
+      function pad(n) {
+        // Clamp to -99..999 for display
+        const clamped = Math.max(-99, Math.min(n, 999));
+        if (clamped < 0) {
+          return '-' + String(Math.abs(clamped)).padStart(2, '0');
+        }
+        return String(clamped).padStart(3, '0');
       }
 
       /* ---- Cell class ---- */
