@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Minesweeper</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    /* ---- Reset and page ---- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1a1a2e;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Arial', sans-serif;
+      color: #eee;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      letter-spacing: 3px;
+      margin-bottom: 18px;
+      color: #c0c0c0;
+      text-transform: uppercase;
+      text-shadow: 0 0 8px rgba(192,192,192,0.4);
+    }
+
+    /* ---- Difficulty selector ---- */
+    .difficulty-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .diff-btn {
+      padding: 6px 16px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: none;
+      background: #2e2e4e;
+      color: #aaa;
+      border-top: 2px solid #555;
+      border-left: 2px solid #555;
+      border-right: 2px solid #111;
+      border-bottom: 2px solid #111;
+      transition: background 0.15s;
+    }
+
+    .diff-btn:hover {
+      background: #3a3a5e;
+      color: #ddd;
+    }
+
+    .diff-btn.active {
+      background: #c0c0c0;
+      color: #111;
+      border-top: 2px solid #888;
+      border-left: 2px solid #888;
+      border-right: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+    }
+
+    /* ---- Game container (outer raised border) ---- */
+    .game-container {
+      background: #c0c0c0;
+      border-top: 3px solid #fff;
+      border-left: 3px solid #fff;
+      border-right: 3px solid #808080;
+      border-bottom: 3px solid #808080;
+      padding: 8px;
+      user-select: none;
+    }
+
+    /* ---- Header bar ---- */
+    .header {
+      background: #c0c0c0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 8px;
+      margin-bottom: 8px;
+      border-top: 2px solid #808080;
+      border-left: 2px solid #808080;
+      border-right: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+    }
+
+    /* Digital display (counter + timer) */
+    .digital-display {
+      background: #000;
+      color: #ff0000;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 1.5rem;
+      font-weight: bold;
+      letter-spacing: 3px;
+      min-width: 52px;
+      text-align: right;
+      padding: 3px 6px;
+      border-top: 1px solid #808080;
+      border-left: 1px solid #808080;
+      border-right: 1px solid #fff;
+      border-bottom: 1px solid #fff;
+    }
+
+    /* Smiley reset button */
+    .smiley-btn {
+      width: 36px;
+      height: 36px;
+      font-size: 1.3rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      background: #c0c0c0;
+      border-top: 2px solid #fff;
+      border-left: 2px solid #fff;
+      border-right: 2px solid #808080;
+      border-bottom: 2px solid #808080;
+      line-height: 1;
+    }
+
+    .smiley-btn:active {
+      border-top: 2px solid #808080;
+      border-left: 2px solid #808080;
+      border-right: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+    }
+
+    /* ---- Grid wrapper (inset border) ---- */
+    .grid-wrapper {
+      border-top: 3px solid #808080;
+      border-left: 3px solid #808080;
+      border-right: 3px solid #fff;
+      border-bottom: 3px solid #fff;
+      display: inline-block;
+      line-height: 0;
+      overflow-x: auto;
+      max-width: 100%;
+    }
+
+    /* ---- Grid ---- */
+    .grid {
+      display: inline-grid;
+      gap: 0;
+    }
+
+    /* ---- Individual cells ---- */
+    .cell {
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: bold;
+      cursor: pointer;
+      position: relative;
+    }
+
+    /* Unrevealed: classic raised look */
+    .cell.unrevealed {
+      background: #c0c0c0;
+      border-top: 3px solid #fff;
+      border-left: 3px solid #fff;
+      border-right: 3px solid #808080;
+      border-bottom: 3px solid #808080;
+    }
+
+    .cell.unrevealed:hover {
+      background: #d0d0d0;
+    }
+
+    /* Revealed: flat sunken look */
+    .cell.revealed {
+      background: #d4d4d4;
+      border: 1px solid #aaa;
+      cursor: default;
+    }
+
+    /* Flag */
+    .cell.flagged {
+      background: #c0c0c0;
+      border-top: 3px solid #fff;
+      border-left: 3px solid #fff;
+      border-right: 3px solid #808080;
+      border-bottom: 3px solid #808080;
+    }
+
+    /* Mine that killed you */
+    .cell.mine-hit {
+      background: #ff4444;
+      border: 1px solid #aaa;
+      cursor: default;
+    }
+
+    /* Classic number colors */
+    .n1 { color: #0000ff; }
+    .n2 { color: #008000; }
+    .n3 { color: #ff0000; }
+    .n4 { color: #000080; }
+    .n5 { color: #800000; }
+    .n6 { color: #008080; }
+    .n7 { color: #1a1a1a; }
+    .n8 { color: #808080; }
+  </style>
+</head>
+<body>
+  <h1>Minesweeper</h1>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    /* ---- Difficulty configs ---- */
+    const DIFFICULTIES = {
+      Easy:   { rows: 9,  cols: 9,  mines: 10 },
+      Medium: { rows: 16, cols: 16, mines: 40 },
+      Hard:   { rows: 16, cols: 30, mines: 99 },
+    };
+
+    /* ---- Build a fresh empty board ---- */
+    function buildBoard(rows, cols) {
+      return Array.from({ length: rows }, (_, r) =>
+        Array.from({ length: cols }, (_, c) => ({
+          row: r,
+          col: c,
+          mine: false,
+          revealed: false,
+          flagged: false,
+          adjacent: 0,
+        }))
+      );
+    }
+
+    /* ---- Get valid neighbors ---- */
+    function neighbors(board, r, c) {
+      const rows = board.length;
+      const cols = board[0].length;
+      const result = [];
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = r + dr;
+          const nc = c + dc;
+          if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+            result.push(board[nr][nc]);
+          }
+        }
+      }
+      return result;
+    }
+
+    /* ---- Place mines (safe zone = clicked cell + 8 neighbors) ---- */
+    function placeMines(board, safeRow, safeCol, mineCount) {
+      const rows = board.length;
+      const cols = board[0].length;
+
+      // Build set of safe positions
+      const safeSet = new Set();
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          const nr = safeRow + dr;
+          const nc = safeCol + dc;
+          if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+            safeSet.add(`${nr},${nc}`);
+          }
+        }
+      }
+
+      // Collect candidate positions
+      const candidates = [];
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (!safeSet.has(`${r},${c}`)) candidates.push([r, c]);
+        }
+      }
+
+      // Fisher-Yates shuffle, pick first mineCount
+      for (let i = candidates.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+      }
+
+      // Deep-clone board and place mines
+      const newBoard = board.map(row => row.map(cell => ({ ...cell })));
+      for (let i = 0; i < mineCount; i++) {
+        const [r, c] = candidates[i];
+        newBoard[r][c].mine = true;
+      }
+
+      // Calculate adjacent counts
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (!newBoard[r][c].mine) {
+            newBoard[r][c].adjacent = neighbors(newBoard, r, c)
+              .filter(n => n.mine).length;
+          }
+        }
+      }
+
+      return newBoard;
+    }
+
+    /* ---- Flood-fill reveal ---- */
+    function floodReveal(board, startRow, startCol) {
+      const newBoard = board.map(row => row.map(cell => ({ ...cell })));
+      const queue = [[startRow, startCol]];
+      const visited = new Set();
+
+      while (queue.length > 0) {
+        const [r, c] = queue.shift();
+        const key = `${r},${c}`;
+        if (visited.has(key)) continue;
+        visited.add(key);
+
+        const cell = newBoard[r][c];
+        if (cell.flagged || cell.mine) continue;
+
+        cell.revealed = true;
+
+        // Only expand further if this cell is empty (adjacent=0)
+        if (cell.adjacent === 0) {
+          neighbors(newBoard, r, c).forEach(n => {
+            if (!n.revealed && !n.flagged) {
+              queue.push([n.row, n.col]);
+            }
+          });
+        }
+      }
+
+      return newBoard;
+    }
+
+    /* ---- Check win condition ---- */
+    function checkWin(board) {
+      for (const row of board) {
+        for (const cell of row) {
+          if (!cell.mine && !cell.revealed) return false;
+        }
+      }
+      return true;
+    }
+
+    /* ---- Number color class ---- */
+    function numClass(n) {
+      return n >= 1 && n <= 8 ? `n${n}` : '';
+    }
+
+    /* ---- Cell content renderer ---- */
+    function cellContent(cell, gameState) {
+      if (cell.flagged) {
+        // On loss, wrong flags show X
+        if (gameState === 'lost' && !cell.mine) return '✗';
+        return '🚩';
+      }
+      if (cell.revealed) {
+        if (cell.mine) return '💣';
+        if (cell.adjacent > 0) return cell.adjacent;
+        return '';
+      }
+      // Unrevealed non-flagged: on loss, show all mines
+      if (gameState === 'lost' && cell.mine) return '💣';
+      return '';
+    }
+
+    /* ---- Main App ---- */
+    function App() {
+      const [difficulty, setDifficulty] = useState('Easy');
+      const [board, setBoard] = useState(() => {
+        const { rows, cols } = DIFFICULTIES['Easy'];
+        return buildBoard(rows, cols);
+      });
+      const [gameState, setGameState] = useState('idle'); // idle | playing | won | lost
+      const [minesLeft, setMinesLeft] = useState(DIFFICULTIES['Easy'].mines);
+      const [time, setTime] = useState(0);
+      const [smileyPressed, setSmileyPressed] = useState(false);
+      const [cellPressed, setCellPressed] = useState(false);
+
+      const timerRef = useRef(null);
+
+      /* ---- Timer ---- */
+      const startTimer = useCallback(() => {
+        if (timerRef.current) return;
+        timerRef.current = setInterval(() => {
+          setTime(t => Math.min(t + 1, 999));
+        }, 1000);
+      }, []);
+
+      const stopTimer = useCallback(() => {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+      }, []);
+
+      /* ---- Reset game ---- */
+      const resetGame = useCallback((diff = difficulty) => {
+        stopTimer();
+        const { rows, cols, mines } = DIFFICULTIES[diff];
+        setBoard(buildBoard(rows, cols));
+        setGameState('idle');
+        setMinesLeft(mines);
+        setTime(0);
+      }, [difficulty, stopTimer]);
+
+      /* ---- Switch difficulty ---- */
+      function handleDifficulty(diff) {
+        setDifficulty(diff);
+        resetGame(diff);
+      }
+
+      /* ---- Left click: reveal ---- */
+      function handleReveal(r, c) {
+        if (gameState === 'won' || gameState === 'lost') return;
+        const cell = board[r][c];
+        if (cell.revealed || cell.flagged) return;
+
+        let workingBoard = board;
+
+        // First click: place mines, start timer
+        if (gameState === 'idle') {
+          workingBoard = placeMines(board, r, c, DIFFICULTIES[difficulty].mines);
+          setGameState('playing');
+          startTimer();
+        }
+
+        const target = workingBoard[r][c];
+
+        // Hit a mine
+        if (target.mine) {
+          stopTimer();
+          // Reveal all mines
+          const lostBoard = workingBoard.map(row =>
+            row.map(cell => ({
+              ...cell,
+              revealed: cell.mine ? true : cell.revealed,
+              hitMine: cell.row === r && cell.col === c,
+            }))
+          );
+          // Mark the clicked mine specially
+          lostBoard[r][c].hitMine = true;
+          setBoard(lostBoard);
+          setGameState('lost');
+          return;
+        }
+
+        // Flood-fill reveal
+        const revealed = floodReveal(workingBoard, r, c);
+
+        if (checkWin(revealed)) {
+          stopTimer();
+          // Auto-flag remaining mines
+          const wonBoard = revealed.map(row =>
+            row.map(cell => ({
+              ...cell,
+              flagged: cell.mine ? true : cell.flagged,
+            }))
+          );
+          setBoard(wonBoard);
+          setMinesLeft(0);
+          setGameState('won');
+        } else {
+          setBoard(revealed);
+        }
+      }
+
+      /* ---- Right click: flag ---- */
+      function handleFlag(e, r, c) {
+        e.preventDefault();
+        if (gameState === 'won' || gameState === 'lost') return;
+        const cell = board[r][c];
+        if (cell.revealed) return;
+
+        const newBoard = board.map(row => row.map(c2 => ({ ...c2 })));
+        const target = newBoard[r][c];
+        target.flagged = !target.flagged;
+        setBoard(newBoard);
+        setMinesLeft(prev => target.flagged ? prev - 1 : prev + 1);
+      }
+
+      /* ---- Smiley face state ---- */
+      function getSmiley() {
+        if (smileyPressed) return '😮';
+        if (gameState === 'won') return '😎';
+        if (gameState === 'lost') return '😵';
+        if (cellPressed) return '😮';
+        return '🙂';
+      }
+
+      /* ---- Pad display numbers ---- */
+      function pad(n, len = 3) {
+        const s = Math.abs(Math.min(n, 999)).toString();
+        const padded = s.padStart(len, '0');
+        return n < 0 ? '-' + padded.slice(1) : padded;
+      }
+
+      /* ---- Cell class ---- */
+      function cellClass(cell) {
+        if (cell.hitMine) return 'cell mine-hit';
+        if (cell.revealed) return `cell revealed`;
+        if (cell.flagged) return 'cell flagged';
+        return 'cell unrevealed';
+      }
+
+      const { cols } = DIFFICULTIES[difficulty];
+
+      return (
+        <>
+          {/* Difficulty selector */}
+          <div className="difficulty-bar">
+            {Object.keys(DIFFICULTIES).map(d => (
+              <button
+                key={d}
+                className={`diff-btn${difficulty === d ? ' active' : ''}`}
+                onClick={() => handleDifficulty(d)}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+
+          {/* Game container */}
+          <div className="game-container">
+            {/* Header */}
+            <div className="header">
+              <div className="digital-display">{pad(minesLeft)}</div>
+
+              <div
+                className="smiley-btn"
+                onMouseDown={() => setSmileyPressed(true)}
+                onMouseUp={() => { setSmileyPressed(false); resetGame(); }}
+                onMouseLeave={() => setSmileyPressed(false)}
+              >
+                {getSmiley()}
+              </div>
+
+              <div className="digital-display">{pad(time)}</div>
+            </div>
+
+            {/* Grid */}
+            <div className="grid-wrapper" onContextMenu={e => e.preventDefault()}>
+              <div
+                className="grid"
+                style={{ gridTemplateColumns: `repeat(${cols}, 30px)` }}
+              >
+                {board.flat().map(cell => {
+                  const content = cellContent(cell, gameState);
+                  const numCls = cell.revealed && !cell.mine && cell.adjacent > 0
+                    ? numClass(cell.adjacent)
+                    : '';
+                  return (
+                    <div
+                      key={`${cell.row}-${cell.col}`}
+                      className={`${cellClass(cell)}${numCls ? ' ' + numCls : ''}`}
+                      onClick={() => handleReveal(cell.row, cell.col)}
+                      onContextMenu={e => handleFlag(e, cell.row, cell.col)}
+                      onMouseDown={() => {
+                        if (!cell.revealed && !cell.flagged) setCellPressed(true);
+                      }}
+                      onMouseUp={() => setCellPressed(false)}
+                      onMouseLeave={() => setCellPressed(false)}
+                    >
+                      {content}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
