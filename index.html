@@ -180,6 +180,7 @@
 
     .cell.unrevealed:hover {
       background: #d0d0d0;
+      transition: background 0.08s ease;
     }
 
     /* Revealed: flat sunken look with thin inset border */
@@ -516,6 +517,27 @@
         return 'cell unrevealed';
       }
 
+      /* ---- Keyboard shortcuts: R=reset, 1/2/3=difficulty ---- */
+      useEffect(() => {
+        const DIFF_KEYS = { '1': 'Easy', '2': 'Medium', '3': 'Hard' };
+        function onKey(e) {
+          // Ignore if user is typing in an input
+          if (e.target.tagName === 'INPUT') return;
+          if (e.key === 'r' || e.key === 'R') {
+            resetGame();
+          } else if (DIFF_KEYS[e.key]) {
+            const d = DIFF_KEYS[e.key];
+            setDifficulty(d);
+            resetGame(d);
+          }
+        }
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+      }, [difficulty, resetGame]);
+
+      /* ---- Cell size: shrink for Hard mode to prevent overflow ---- */
+      const cellSize = difficulty === 'Hard' ? 24 : 30;
+
       const { cols } = DIFFICULTIES[difficulty];
 
       return (
@@ -555,7 +577,7 @@
             <div className="grid-wrapper" onContextMenu={e => e.preventDefault()}>
               <div
                 className="grid"
-                style={{ gridTemplateColumns: `repeat(${cols}, 30px)` }}
+                style={{ gridTemplateColumns: `repeat(${cols}, ${cellSize}px)` }}
               >
                 {board.flat().map(cell => {
                   const content = cellContent(cell, gameState);
@@ -566,6 +588,7 @@
                     <div
                       key={`${cell.row}-${cell.col}`}
                       className={`${cellClass(cell)}${numCls ? ' ' + numCls : ''}`}
+                      style={{ width: cellSize, height: cellSize, fontSize: cellSize < 30 ? '0.75rem' : '0.9rem' }}
                       onClick={() => handleReveal(cell.row, cell.col)}
                       onContextMenu={e => handleFlag(e, cell.row, cell.col)}
                       onMouseDown={() => {
